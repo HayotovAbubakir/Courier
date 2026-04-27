@@ -1,19 +1,3 @@
-# Delivery Tracker
-
-This Vite app reads its Supabase connection from `.env.local`:
-
-```env
-VITE_SUPABASE_URL=your_url_here
-VITE_SUPABASE_ANON_KEY=your_key_here
-```
-
-Note: for the current project ref, the resolvable host is `*.supabase.co`. The matching `*.supabase.com` hostname does not resolve for this project.
-
-## Supabase SQL
-
-Run this exact SQL in the Supabase SQL editor:
-
-```sql
 CREATE TABLE IF NOT EXISTS public.clients (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   name text NOT NULL,
@@ -67,25 +51,3 @@ CREATE TABLE IF NOT EXISTS public.payments (
 );
 
 ALTER TABLE public.delivery_items ADD COLUMN IF NOT EXISTS product_image_url text;
-```
-
-## Supabase Storage
-
-- Supabase Dashboard ichida `products` nomli public bucket yarating.
-- Delivery form mahsulot rasmlarini shu bucketga yuklaydi.
-
-## RLS
-
-In Supabase Dashboard go to `Authentication -> Policies` and either:
-
-- disable RLS temporarily for testing, or
-- add policies that allow the anon key to `select`, `insert`, `update`, and `delete` on these tables.
-
-## Notes
-
-- The app loads all page data from Supabase on page open.
-- Client forms write to `clients`.
-- Factory forms write to `factories`.
-- Delivery forms write to `deliveries` and `delivery_items`, including the `factory_id -> client_id` route.
-- Reminder screens read overdue rows from `deliveries`.
-- Dashboard stats aggregate data from `clients`, `deliveries`, `delivery_items`, and `payments`.

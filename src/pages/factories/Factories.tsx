@@ -1,0 +1,215 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
+import { Navigation } from '@/components/Navigation';
+import { Button, Card, EmptyState, Input, Loading, Modal, TextArea } from '@/components/ui';
+import { useApp } from '@/context/AppContext';
+import type { Database } from '@/lib/database.types';
+import {
+  createFactory,
+  deleteFactory,
+  getFactories,
+  updateFactory,
+} from '@/lib/db-operations';
+
+export default function FactoriesPage() {
+  const { t } = useApp();
+  const [factories, setFactories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingFactory, setEditingFactory] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    address: '',
+  });
+
+  useEffect(() => {
+    void loadFactories();
+  }, []);
+
+  async function loadFactories() {
+    try {
+      setLoading(true);
+      const data = await getFactories();
+      setFactories(data || []);
+    } catch (error) {
+      console.error('Error loading factories:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSave() {
+    try {
+      if (editingFactory) {
+        await updateFactory(editingFactory.id, formData);
+      } else {
+        await createFactory({
+          id: uuidv4(),
+          ...formData,
+          created_at: new Date().toISOString(),
+        } as Database['public']['Tables']['factories']['Insert']);
+      }
+
+      setIsModalOpen(false);
+      setFormData({ name: '', phone: '', address: '' });
+      setEditingFactory(null);
+      await loadFactories();
+    } catch (error) {
+      console.error('Error saving factory:', error);
+    }
+  }
+
+  function handleEdit(factory: any) {
+    setEditingFactory(factory);
+    setFormData({
+      name: factory.name,
+      phone: factory.phone,
+      address: factory.address,
+    });
+    setIsModalOpen(true);
+  }
+
+  function handleNew() {
+    setEditingFactory(null);
+    setFormData({ name: '', phone: '', address: '' });
+    setIsModalOpen(true);
+  }
+
+  async function handleDelete(id: string) {
+    if (confirm(t('confirmDelete') || "Zavodni o'chirmoqchimisiz?")) {
+      try {
+        await deleteFactory(id);
+        await loadFactories();
+      } catch (error) {
+        console.error('Error deleting factory:', error);
+      }
+    }
+  }
+
+  if (loading) {
+    return (
+      <>
+        <Navigation />
+        <Loading message={t('loading')} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Navigation />
+      <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
+        <div className="mb-8 flex items-center justify-between gap-3">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('factories')}</h1>
+          <Button onClick={handleNew} size="lg">
+            {t('add')}
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {factories.length === 0 ? (
+            <div className="col-span-full">
+              <EmptyState
+                icon="--"
+                title={t('noData')}
+                description="Hali zavodlar qo'shilmagan"
+                action={<Button onClick={handleNew}>{t('addFactory')}</Button>}
+              />
+            </div>
+          ) : (
+            factories.map((factory: any) => (
+              <Card key={factory.id} className="flex flex-col gap-5">
+                <div className="space-y-3">
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-white">
+                    {factory.name}
+                  </h3>
+
+                  <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                    <p>
+                      <span className="font-semibold">Telefon:</span> {factory.phone}
+                    </p>
+                    <p>
+                      <span className="font-semibold">Manzil:</span> {factory.address}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Link to={`/factories/${factory.id}`} className="flex-1 min-w-[120px]">
+                    <Button variant="secondary" size="sm" className="w-full">
+                      Ko'rish
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleEdit(factory)}
+                    size="sm"
+                    className="min-w-[120px]"
+                  >
+                    Tahrirlash
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => handleDelete(factory.id)}
+                    size="sm"
+                    className="min-w-[120px]"
+                  >
+                    O'chirish
+                  </Button>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingFactory(null);
+          }}
+          title={editingFactory ? t('editFactory') : t('addFactory')}
+          actions={
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingFactory(null);
+                }}
+              >
+                {t('cancel')}
+              </Button>
+              <Button onClick={handleSave}>{t('save')}</Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <Input
+              label={t('factoryName')}
+              value={formData.name}
+              onChange={(event) => setFormData({ ...formData, name: event.target.value })}
+              placeholder="Zavod nomi"
+            />
+            <Input
+              label={t('phone')}
+              value={formData.phone}
+              onChange={(event) => setFormData({ ...formData, phone: event.target.value })}
+              placeholder="+998 90 000 00 00"
+              type="tel"
+            />
+            <TextArea
+              label={t('address')}
+              value={formData.address}
+              onChange={(event) => setFormData({ ...formData, address: event.target.value })}
+              placeholder="Manzil"
+              rows={3}
+            />
+          </div>
+        </Modal>
+      </main>
+    </>
+  );
+}

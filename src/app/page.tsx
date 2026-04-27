@@ -1,65 +1,201 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useEffect, useState } from 'react';
+import { Navigation } from '@/components/Navigation';
+import { Card, Button, Loading, EmptyState, Badge } from '@/components/ui';
+import { useApp } from '@/context/AppContext';
+import { getDashboardStats, getReminders } from '@/lib/db-operations';
+import Link from 'next/link';
+
+export default function Dashboard() {
+  const { t } = useApp();
+  const [stats, setStats] = useState<any>(null);
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const [dashboardStats, remindersData] = await Promise.all([
+          getDashboardStats(),
+          getReminders(),
+        ]);
+        setStats(dashboardStats);
+        setReminders(remindersData || []);
+      } catch (error) {
+        console.error('Error loading dashboard:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <>
+        <Navigation />
+        <Loading message={t('loading')} />
+      </>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <>
+      <Navigation />
+      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">{t('dashboard')}</h1>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard
+            icon="💰"
+            label={t('totalReceivables')}
+            value={stats?.totalReceivables ? `${stats.totalReceivables.toLocaleString()} so'm` : '0 so\'m'}
+          />
+          <StatCard
+            icon="⏰"
+            label={t('overdueAmount')}
+            value={stats?.totalOverdue ? `${stats.totalOverdue.toLocaleString()} so'm` : '0 so\'m'}
+            variant="danger"
+          />
+          <StatCard
+            icon="📅"
+            label={t('thisWeekPayments')}
+            value={stats?.thisWeekPayments ? `${stats.thisWeekPayments.toLocaleString()} so'm` : '0 so\'m'}
+            variant="warning"
+          />
+          <StatCard
+            icon="✅"
+            label={t('paidAmount')}
+            value={stats?.totalPaid ? `${stats.totalPaid.toLocaleString()} so'm` : '0 so\'m'}
+            variant="success"
+          />
+        </div>
+
+        {/* Reminders Section */}
+        <Card className="mb-8">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <span>🔔</span> {t('reminders')}
+          </h2>
+
+          {reminders.length === 0 ? (
+            <EmptyState
+              icon="✅"
+              title={t('noData')}
+              description="Hozircha muddati o'tgan yoki kelayotgan to'lovlar yo'q"
+            />
+          ) : (
+            <div className="space-y-3">
+              {reminders.slice(0, 5).map((reminder: any) => (
+                <ReminderItem key={reminder.id} reminder={reminder} />
+              ))}
+            </div>
+          )}
+
+          {reminders.length > 5 && (
+            <div className="text-center mt-4">
+              <Link href="/reminders">
+                <Button variant="ghost" size="sm">
+                  View more...
+                </Button>
+              </Link>
+            </div>
+          )}
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Link href="/clients/new">
+              <Button className="w-full" size="lg">
+                ➕ {t('addClient')}
+              </Button>
+            </Link>
+            <Link href="/deliveries/new">
+              <Button className="w-full" size="lg">
+                📦 {t('addDelivery')}
+              </Button>
+            </Link>
+            <Link href="/clients">
+              <Button className="w-full" variant="secondary" size="lg">
+                👥 View Clients
+              </Button>
+            </Link>
+            <Link href="/deliveries">
+              <Button className="w-full" variant="secondary" size="lg">
+                📋 View Deliveries
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      </main>
+    </>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  variant = 'default',
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  variant?: 'default' | 'danger' | 'warning' | 'success';
+}) {
+  const bgStyles = {
+    default: 'bg-blue-50',
+    danger: 'bg-red-50',
+    warning: 'bg-yellow-50',
+    success: 'bg-green-50',
+  };
+
+  const textStyles = {
+    default: 'text-blue-900',
+    danger: 'text-red-900',
+    warning: 'text-yellow-900',
+    success: 'text-green-900',
+  };
+
+  return (
+    <div className={`${bgStyles[variant]} rounded-lg p-6`}>
+      <div className="text-3xl mb-2">{icon}</div>
+      <p className="text-gray-600 text-sm mb-1">{label}</p>
+      <p className={`text-2xl font-bold ${textStyles[variant]}`}>{value}</p>
+    </div>
+  );
+}
+
+function ReminderItem({ reminder }: { reminder: any }) {
+  const isOverdue = reminder.isOverdue;
+  const color = isOverdue ? 'red' : 'yellow';
+
+  return (
+    <div className={`border-l-4 border-${color}-500 bg-${color}-50 p-4 rounded`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <p className="font-bold text-gray-900">{reminder.clients?.name}</p>
+          <p className="text-sm text-gray-600">
+            {reminder.delivery_items?.[0]?.product_name || 'Product'}
+          </p>
+          <p className="text-sm font-semibold text-gray-900 mt-1">
+            {reminder.total_amount - (reminder.paid_amount || 0)} so'm
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="text-right">
+          {isOverdue ? (
+            <Badge variant="danger">{reminder.daysOverdue} days overdue</Badge>
+          ) : (
+            <Badge variant="warning">Due soon</Badge>
+          )}
+          <p className="text-xs text-gray-600 mt-2">{reminder.due_date?.split('T')[0]}</p>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

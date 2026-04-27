@@ -1,26 +1,106 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --bg: #0f172a;
+  --card: #1e293b;
+  --card-soft: rgba(15, 23, 42, 0.4);
+  --card-hover: #334155;
+  --text: #f1f5f9;
+  --soft-text: #cbd5e1;
+  --muted-text: #94a3b8;
+  --placeholder: #64748b;
+  --border: #334155;
+  --input: rgba(15, 23, 42, 0.5);
+  --navbar: rgba(30, 41, 59, 0.95);
+  --ghost-hover: rgba(148, 163, 184, 0.12);
+  --overlay: rgba(2, 6, 23, 0.6);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.light {
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html.light {
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --card-soft: #f8fafc;
+  --card-hover: #f1f5f9;
+  --text: #0f172a;
+  --soft-text: #1f2937;
+  --muted-text: #475569;
+  --placeholder: #64748b;
+  --border: #e2e8f0;
+  --input: #ffffff;
+  --navbar: rgba(255, 255, 255, 0.95);
+  --ghost-hover: rgba(15, 23, 42, 0.05);
+  --overlay: rgba(15, 23, 42, 0.6);
+}
+
+html.dark {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --card-soft: rgba(15, 23, 42, 0.4);
+  --card-hover: #334155;
+  --text: #f1f5f9;
+  --soft-text: #cbd5e1;
+  --muted-text: #94a3b8;
+  --placeholder: #64748b;
+  --border: #334155;
+  --input: rgba(15, 23, 42, 0.5);
+  --navbar: rgba(30, 41, 59, 0.95);
+  --ghost-hover: rgba(148, 163, 184, 0.12);
+  --overlay: rgba(2, 6, 23, 0.6);
+}
+
+@layer base {
+  html {
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  #root {
+    min-height: 100vh;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  html.light .light-text-strong {
+    color: #111827 !important;
+  }
+
+  html.light .light-text-card {
+    color: #111827 !important;
+  }
+
+  html.light .light-text-body {
+    color: #1f2937 !important;
+  }
+
+  html.light .light-text-muted {
+    color: #334155 !important;
+  }
+
+  html.light .light-nav-link {
+    color: #1f2937 !important;
+  }
+
+  html.light .light-nav-link:hover {
+    color: #111827 !important;
+  }
+
+  html.light .light-nav-active {
+    color: #1d4ed8 !important;
+    background-color: #dbeafe !important;
+  }
 }
