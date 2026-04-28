@@ -74,8 +74,15 @@ function cleanupItemPreviews(items: DeliveryItem[]) {
 }
 
 export default function DeliveriesPage() {
-  const { t } = useApp();
+  const { t, showToast } = useApp();
   const [searchParams] = useSearchParams();
+  const createInitialFormData = () => ({
+    factory_id: searchParams.get('factory') || '',
+    client_id: searchParams.get('client') || '',
+    delivery_date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    notes: '',
+  });
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [factories, setFactories] = useState<any[]>([]);
@@ -84,13 +91,7 @@ export default function DeliveriesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryFilter>('active');
-  const [formData, setFormData] = useState({
-    factory_id: searchParams.get('factory') || '',
-    client_id: searchParams.get('client') || '',
-    delivery_date: new Date().toISOString().split('T')[0],
-    due_date: '',
-    notes: '',
-  });
+  const [formData, setFormData] = useState(createInitialFormData);
   const [items, setItems] = useState<DeliveryItem[]>([createEmptyItem()]);
   const itemsRef = useRef(items);
 
@@ -143,37 +144,58 @@ export default function DeliveriesPage() {
 
   async function handleSave() {
     if (!formData.factory_id) {
-      alert('Zavod tanlang');
+      showToast({
+        type: 'warning',
+        message: 'Zavod tanlang',
+      });
       return;
     }
 
     if (!formData.client_id) {
-      alert("Do'kon tanlang");
+      showToast({
+        type: 'warning',
+        message: "Do'kon tanlang",
+      });
       return;
     }
 
     if (items.some((item) => !item.product_name || item.quantity <= 0 || item.unit_price < 0)) {
-      alert("Barcha mahsulotlarni to'liq to'ldiring");
+      showToast({
+        type: 'warning',
+        message: "Barcha mahsulotlarni to'liq to'ldiring",
+      });
       return;
     }
 
-    try {
-      const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
-      const deliveryId = uuidv4();
+    const currentFormData = { ...formData };
+    const currentItems = items.map((item) => ({ ...item }));
+    const totalAmount = currentItems.reduce(
+      (sum, item) => sum + item.quantity * item.unit_price,
+      0
+    );
+    const deliveryId = uuidv4();
 
+    setIsModalOpen(false);
+    showToast({
+      type: 'info',
+      message: "Yetkazib berish saqlanmoqda...",
+      durationMs: 1800,
+    });
+
+    try {
       await createDelivery({
         id: deliveryId,
-        factory_id: formData.factory_id,
-        client_id: formData.client_id,
-        delivery_date: formData.delivery_date,
-        due_date: formData.due_date || null,
+        factory_id: currentFormData.factory_id,
+        client_id: currentFormData.client_id,
+        delivery_date: currentFormData.delivery_date,
+        due_date: currentFormData.due_date || null,
         total_amount: totalAmount,
         paid_amount: 0,
         status: 'unpaid',
-        notes: formData.notes || null,
+        notes: currentFormData.notes || null,
       });
 
-      for (const item of items) {
+      for (const item of currentItems) {
         const itemId = uuidv4();
         const productImageUrl = item.image_file
           ? await uploadProductImage(item.image_file, deliveryId, itemId)
@@ -191,11 +213,21 @@ export default function DeliveriesPage() {
         });
       }
 
-      resetForm();
       setDeliveryFilter('active');
       await loadData();
+      showToast({
+        type: 'success',
+        message: "Yetkazib berish qo'shildi",
+      });
     } catch (error) {
       console.error('Error saving delivery:', error);
+      setFormData(currentFormData);
+      setItems(currentItems);
+      setIsModalOpen(true);
+      showToast({
+        type: 'error',
+        message: "Yetkazib berishni saqlashda xato yuz berdi",
+      });
     }
   }
 
@@ -208,25 +240,34 @@ export default function DeliveriesPage() {
       setDeletingDeliveryId(deliveryId);
       await deleteDeliveryWithRelations(deliveryId);
       await loadData();
+      showToast({
+        type: 'success',
+        message: "Yetkazib berish o'chirildi",
+      });
     } catch (error) {
       console.error('Error deleting delivery:', error);
-      alert("Yetkazib berishni o'chirishda xato yuz berdi");
+      showToast({
+        type: 'error',
+        message: "Yetkazib berishni o'chirishda xato yuz berdi",
+      });
     } finally {
       setDeletingDeliveryId(null);
     }
   }
 
-  function resetForm() {
+  function resetFormState() {
     cleanupItemPreviews(itemsRef.current);
-    setIsModalOpen(false);
-    setFormData({
-      factory_id: searchParams.get('factory') || '',
-      client_id: searchParams.get('client') || '',
-      delivery_date: new Date().toISOString().split('T')[0],
-      due_date: '',
-      notes: '',
-    });
+    setFormData(createInitialFormData());
     setItems([createEmptyItem()]);
+  }
+
+  function openCreateModal() {
+    resetFormState();
+    setIsModalOpen(true);
+  }
+
+  function closeCreateModal() {
+    setIsModalOpen(false);
   }
 
   function handleImageChange(index: number, file: File | null) {
@@ -306,7 +347,7 @@ export default function DeliveriesPage() {
               </Button>
             </div>
           </div>
-          <Button onClick={() => setIsModalOpen(true)} size="lg">
+          <Button onClick={openCreateModal} size="lg">
             {t('add')}
           </Button>
         </div>
@@ -319,7 +360,7 @@ export default function DeliveriesPage() {
               description={emptyDescription}
               action={
                 deliveryFilter === 'active' ? (
-                  <Button onClick={() => setIsModalOpen(true)}>{t('addDelivery')}</Button>
+                  <Button onClick={openCreateModal}>{t('addDelivery')}</Button>
                 ) : undefined
               }
             />
@@ -492,18 +533,27 @@ export default function DeliveriesPage() {
 
         <Modal
           isOpen={isModalOpen}
-          onClose={resetForm}
+          onClose={closeCreateModal}
           title={t('addDelivery')}
           actions={
             <>
-              <Button variant="secondary" onClick={resetForm}>
+              <Button variant="secondary" onClick={closeCreateModal} type="button">
                 {t('cancel')}
               </Button>
-              <Button onClick={handleSave}>{t('save')}</Button>
+              <Button type="submit" form="delivery-create-form">
+                {t('save')}
+              </Button>
             </>
           }
         >
-          <div className="max-h-96 space-y-6 overflow-y-auto">
+          <form
+            id="delivery-create-form"
+            className="max-h-96 space-y-6 overflow-y-auto"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleSave();
+            }}
+          >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Select
                 label="Zavod"
@@ -637,7 +687,6 @@ export default function DeliveriesPage() {
                         label="Narxi"
                         type="text"
                         inputMode="numeric"
-                        pattern="[0-9]*"
                         value={formatIntegerInput(item.unit_price_input)}
                         onChange={(event) => {
                           const newItems = [...items];
@@ -683,7 +732,7 @@ export default function DeliveriesPage() {
             <div className="rounded-xl border border-gray-200 bg-slate-50 p-4 font-bold text-gray-900 dark:border-[#334155] dark:bg-slate-900/40 dark:text-white">
               Jami: {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0))}
             </div>
-          </div>
+          </form>
         </Modal>
 
         <ImageLightbox

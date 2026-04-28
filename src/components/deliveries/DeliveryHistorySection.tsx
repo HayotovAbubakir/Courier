@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge, Button, EmptyState, Input, Modal, TextArea } from '@/components/ui';
+import { useApp } from '@/context/AppContext';
 import { deleteDeliveryWithRelations, updateDeliveryWithItems } from '@/lib/db-operations';
 import {
   formatDecimalInput,
@@ -56,6 +57,7 @@ export function DeliveryHistorySection({
   onUpdated,
   onPayment,
 }: DeliveryHistorySectionProps) {
+  const { showToast } = useApp();
   const [filterMode, setFilterMode] = useState<FilterMode>('active');
   const [editingDelivery, setEditingDelivery] = useState<DeliveryRecord | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -101,21 +103,37 @@ export function DeliveryHistorySection({
   }) {
     if (!editingDelivery) return;
 
+    const currentDelivery = editingDelivery;
+
+    setEditingDelivery(null);
+    showToast({
+      type: 'info',
+      message: "Yetkazib berish yangilanmoqda...",
+      durationMs: 1600,
+    });
+
     try {
       setIsSaving(true);
       await updateDeliveryWithItems(
-        editingDelivery.id,
+        currentDelivery.id,
         {
           due_date: updatedDelivery.due_date,
           notes: updatedDelivery.notes,
         },
         updatedDelivery.items
       );
-      setEditingDelivery(null);
       await onUpdated();
+      showToast({
+        type: 'success',
+        message: "Yetkazib berish yangilandi",
+      });
     } catch (error) {
       console.error('Error updating delivery:', error);
-      alert("Yetkazib berishni yangilashda xato yuz berdi");
+      setEditingDelivery(currentDelivery);
+      showToast({
+        type: 'error',
+        message: "Yetkazib berishni yangilashda xato yuz berdi",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -130,9 +148,16 @@ export function DeliveryHistorySection({
       setDeletingDeliveryId(deliveryId);
       await deleteDeliveryWithRelations(deliveryId);
       await onUpdated();
+      showToast({
+        type: 'success',
+        message: "Yetkazib berish o'chirildi",
+      });
     } catch (error) {
       console.error('Error deleting delivery:', error);
-      alert("Yetkazib berishni o'chirishda xato yuz berdi");
+      showToast({
+        type: 'error',
+        message: "Yetkazib berishni o'chirishda xato yuz berdi",
+      });
     } finally {
       setDeletingDeliveryId(null);
     }
@@ -339,6 +364,7 @@ function DeliveryEditModal({
     }>;
   }) => Promise<void>;
 }) {
+  const { showToast } = useApp();
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<
@@ -380,7 +406,10 @@ function DeliveryEditModal({
           !item.product_name.trim() || Number.isNaN(item.quantity) || item.quantity <= 0 || item.unit_price < 0
       )
     ) {
-      alert("Mahsulot nomi, miqdori va narxini to'g'ri kiriting");
+      showToast({
+        type: 'warning',
+        message: "Mahsulot nomi, miqdori va narxini to'g'ri kiriting",
+      });
       return;
     }
 
@@ -406,16 +435,23 @@ function DeliveryEditModal({
       title="Yetkazib berishni tahrirlash"
       actions={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={isSaving}>
+          <Button variant="secondary" onClick={onClose} disabled={isSaving} type="button">
             Bekor qilish
           </Button>
-          <Button onClick={handleSubmit} loading={isSaving}>
+          <Button type="submit" form="delivery-edit-form" loading={isSaving}>
             Saqlash
           </Button>
         </>
       }
     >
-      <div className="max-h-[70vh] space-y-4 overflow-y-auto">
+      <form
+        id="delivery-edit-form"
+        className="max-h-[70vh] space-y-4 overflow-y-auto"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSubmit();
+        }}
+      >
         <Input
           label="To'lov muddati"
           type="date"
@@ -492,7 +528,7 @@ function DeliveryEditModal({
             {formatMoney(nextTotal)}
           </p>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 }

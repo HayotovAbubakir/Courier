@@ -13,7 +13,7 @@ import {
 } from '@/lib/db-operations';
 
 export default function FactoriesPage() {
-  const { t } = useApp();
+  const { t, showToast } = useApp();
   const [factories, setFactories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,23 +41,45 @@ export default function FactoriesPage() {
   }
 
   async function handleSave() {
+    const currentFormData = { ...formData };
+    const currentEditingFactory = editingFactory;
+    const isEditing = Boolean(currentEditingFactory);
+
+    setIsModalOpen(false);
+    showToast({
+      type: 'info',
+      message: isEditing ? "Zavod yangilanmoqda..." : "Zavod qo'shilmoqda...",
+      durationMs: 1600,
+    });
+
     try {
-      if (editingFactory) {
-        await updateFactory(editingFactory.id, formData);
+      if (currentEditingFactory) {
+        await updateFactory(currentEditingFactory.id, currentFormData);
       } else {
         await createFactory({
           id: uuidv4(),
-          ...formData,
+          ...currentFormData,
           created_at: new Date().toISOString(),
         } as Database['public']['Tables']['factories']['Insert']);
       }
 
-      setIsModalOpen(false);
-      setFormData({ name: '', phone: '', address: '' });
-      setEditingFactory(null);
       await loadFactories();
+      setEditingFactory((current: any) =>
+        current?.id === currentEditingFactory?.id ? null : current
+      );
+      showToast({
+        type: 'success',
+        message: isEditing ? "Zavod yangilandi" : "Zavod qo'shildi",
+      });
     } catch (error) {
       console.error('Error saving factory:', error);
+      setEditingFactory(currentEditingFactory);
+      setFormData(currentFormData);
+      setIsModalOpen(true);
+      showToast({
+        type: 'error',
+        message: "Zavodni saqlashda xato yuz berdi",
+      });
     }
   }
 
@@ -82,8 +104,16 @@ export default function FactoriesPage() {
       try {
         await deleteFactory(id);
         await loadFactories();
+        showToast({
+          type: 'success',
+          message: "Zavod o'chirildi",
+        });
       } catch (error) {
         console.error('Error deleting factory:', error);
+        showToast({
+          type: 'error',
+          message: "Zavodni o'chirishda xato yuz berdi",
+        });
       }
     }
   }
@@ -179,14 +209,24 @@ export default function FactoriesPage() {
                   setIsModalOpen(false);
                   setEditingFactory(null);
                 }}
+                type="button"
               >
                 {t('cancel')}
               </Button>
-              <Button onClick={handleSave}>{t('save')}</Button>
+              <Button type="submit" form="factory-form">
+                {t('save')}
+              </Button>
             </>
           }
         >
-          <div className="space-y-4">
+          <form
+            id="factory-form"
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleSave();
+            }}
+          >
             <Input
               label={t('factoryName')}
               value={formData.name}
@@ -207,7 +247,7 @@ export default function FactoriesPage() {
               placeholder="Manzil"
               rows={3}
             />
-          </div>
+          </form>
         </Modal>
       </main>
     </>

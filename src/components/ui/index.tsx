@@ -272,9 +272,18 @@ interface AlertProps {
   title?: string;
   message: string;
   onClose?: () => void;
+  className?: string;
+  compact?: boolean;
 }
 
-export function Alert({ type, title, message, onClose }: AlertProps) {
+export function Alert({
+  type,
+  title,
+  message,
+  onClose,
+  className = '',
+  compact = false,
+}: AlertProps) {
   const styles = {
     success: 'border-green-200 bg-green-50 text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200',
     error: 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200',
@@ -283,14 +292,20 @@ export function Alert({ type, title, message, onClose }: AlertProps) {
   } as const;
 
   return (
-    <div className={`rounded-lg border-l-4 p-4 ${styles[type]}`}>
+    <div
+      className={`rounded-lg border-l-4 ${compact ? 'px-3 py-2.5' : 'p-4'} ${styles[type]} ${className}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
-          {title && <p className="font-bold">{title}</p>}
-          <p className="text-sm">{message}</p>
+          {title && <p className={compact ? 'text-sm font-semibold' : 'font-bold'}>{title}</p>}
+          <p className={compact ? 'text-xs sm:text-sm' : 'text-sm'}>{message}</p>
         </div>
         {onClose && (
-          <button type="button" onClick={onClose} className="text-lg font-bold">
+          <button
+            type="button"
+            onClick={onClose}
+            className={compact ? 'text-sm font-bold' : 'text-lg font-bold'}
+          >
             x
           </button>
         )}

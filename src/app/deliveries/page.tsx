@@ -6,6 +6,7 @@ import { Navigation } from '@/components/Navigation';
 import { Card, Button, Input, Select, Loading, EmptyState, Modal, TextArea, Badge } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { getDeliveries, getClients, createDelivery, createDeliveryItem } from '@/lib/db-operations';
+import { formatIntegerInput, normalizeIntegerInput, parseIntegerInput } from '@/lib/delivery-helpers';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -249,7 +250,6 @@ export default function DeliveriesPage() {
                     label={t('quantity')}
                     type="text"
                     inputMode="numeric"
-                    pattern="[0-9]*"
                     value={item.quantity}
                     onChange={(e) => {
                       const newItems = [...items];
@@ -276,11 +276,11 @@ export default function DeliveriesPage() {
                     label={t('unitPrice')}
                     type="text"
                     inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={item.unit_price}
+                    value={formatIntegerInput(item.unit_price)}
                     onChange={(e) => {
                       const newItems = [...items];
-                      newItems[index].unit_price = parseFloat(e.target.value) || 0;
+                      const normalizedValue = normalizeIntegerInput(e.target.value);
+                      newItems[index].unit_price = parseIntegerInput(normalizedValue);
                       setItems(newItems);
                     }}
                   />

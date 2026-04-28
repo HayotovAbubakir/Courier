@@ -21,7 +21,7 @@ const OVERPAYMENT_ERROR = "To'lov qoldiq summadan oshib ketdi";
 
 export default function DeliveryDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { t } = useApp();
+  const { t, showToast } = useApp();
   const [delivery, setDelivery] = useState<any>(null);
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +62,15 @@ export default function DeliveryDetailPage() {
       return;
     }
 
+    const currentPaymentAmount = paymentAmount;
+
+    setIsPaymentModalOpen(false);
+    showToast({
+      type: 'info',
+      message: "To'lov saqlanmoqda...",
+      durationMs: 1600,
+    });
+
     try {
       await recordPayment({
         id: uuidv4(),
@@ -71,14 +80,32 @@ export default function DeliveryDetailPage() {
         notes: '',
       });
 
-      resetPaymentModal();
+      setPaymentAmount('');
+      setPaymentError('');
       await loadData();
+      showToast({
+        type: 'success',
+        message: "To'lov saqlandi",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === OVERPAYMENT_ERROR) {
+        setPaymentAmount(currentPaymentAmount);
         setPaymentError(error.message);
+        setIsPaymentModalOpen(true);
+        showToast({
+          type: 'warning',
+          message: error.message,
+        });
         return;
       }
 
+      setPaymentAmount(currentPaymentAmount);
+      setPaymentError('');
+      setIsPaymentModalOpen(true);
+      showToast({
+        type: 'error',
+        message: "To'lovni saqlashda xato yuz berdi",
+      });
       console.error('Error recording payment:', error);
     }
   }
@@ -316,16 +343,25 @@ export default function DeliveryDetailPage() {
           title="To'lov qo'shish"
           actions={
             <>
-              <Button variant="secondary" onClick={resetPaymentModal}>
+              <Button variant="secondary" onClick={resetPaymentModal} type="button">
                 {t('cancel')}
               </Button>
-              <Button onClick={handlePayment} disabled={!canSavePayment}>
+              <Button type="submit" form="delivery-payment-form" disabled={!canSavePayment}>
                 To'lovni saqlash
               </Button>
             </>
           }
         >
-          <div className="space-y-4">
+          <form
+            id="delivery-payment-form"
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canSavePayment) {
+                void handlePayment();
+              }
+            }}
+          >
             <div className="rounded-xl border border-gray-200 bg-slate-50 p-4 dark:border-[#334155] dark:bg-slate-900/40">
               <p className="text-sm text-gray-500 dark:text-gray-300">Qolgan summa:</p>
               <p className={`text-3xl font-bold ${remainingBalanceColorClass}`}>
@@ -336,7 +372,6 @@ export default function DeliveryDetailPage() {
               label="To'lov summasi"
               type="text"
               inputMode="numeric"
-              pattern="[0-9]*"
               value={formatIntegerInput(paymentAmount)}
               onChange={(event) => handlePaymentAmountChange(event.target.value)}
               onBlur={handlePaymentAmountBlur}
@@ -344,7 +379,7 @@ export default function DeliveryDetailPage() {
               max={remainingBalance}
               error={paymentError}
             />
-          </div>
+          </form>
         </Modal>
 
         <ImageLightbox

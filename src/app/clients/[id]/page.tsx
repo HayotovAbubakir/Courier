@@ -6,6 +6,7 @@ import { Navigation } from '@/components/Navigation';
 import { Card, Button, Loading, EmptyState, Badge, Modal, Input } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { getClient, getClientDeliveries, recordPayment } from '@/lib/db-operations';
+import { formatIntegerInput, normalizeIntegerInput, parseIntegerInput } from '@/lib/delivery-helpers';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -44,7 +45,7 @@ export default function ClientProfilePage() {
       await recordPayment({
         id: uuidv4(),
         delivery_id: selectedDelivery.id,
-        amount: parseFloat(paymentAmount),
+        amount: parseIntegerInput(paymentAmount),
         payment_date: new Date().toISOString().split('T')[0],
         notes: '',
         created_at: new Date().toISOString(),
@@ -240,9 +241,8 @@ export default function ClientProfilePage() {
               label="To'lov summası"
               type="text"
               inputMode="numeric"
-              pattern="[0-9]*"
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
+              value={formatIntegerInput(paymentAmount)}
+              onChange={(e) => setPaymentAmount(normalizeIntegerInput(e.target.value))}
               placeholder="0"
               max={selectedDelivery.total_amount - (selectedDelivery.paid_amount || 0)}
             />

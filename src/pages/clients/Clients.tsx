@@ -8,7 +8,7 @@ import type { Database } from '@/lib/database.types';
 import { createClient, deleteClient, getClients, updateClient } from '@/lib/db-operations';
 
 export default function ClientsPage() {
-  const { t } = useApp();
+  const { t, showToast } = useApp();
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -36,23 +36,45 @@ export default function ClientsPage() {
   }
 
   async function handleSave() {
+    const currentFormData = { ...formData };
+    const currentEditingClient = editingClient;
+    const isEditing = Boolean(currentEditingClient);
+
+    setIsModalOpen(false);
+    showToast({
+      type: 'info',
+      message: isEditing ? "Do'kon yangilanmoqda..." : "Do'kon qo'shilmoqda...",
+      durationMs: 1600,
+    });
+
     try {
-      if (editingClient) {
-        await updateClient(editingClient.id, formData);
+      if (currentEditingClient) {
+        await updateClient(currentEditingClient.id, currentFormData);
       } else {
         await createClient({
           id: uuidv4(),
-          ...formData,
+          ...currentFormData,
           created_at: new Date().toISOString(),
         } as Database['public']['Tables']['clients']['Insert']);
       }
 
-      setIsModalOpen(false);
-      setFormData({ name: '', phone: '', address: '' });
-      setEditingClient(null);
       await loadClients();
+      setEditingClient((current: any) =>
+        current?.id === currentEditingClient?.id ? null : current
+      );
+      showToast({
+        type: 'success',
+        message: isEditing ? "Do'kon yangilandi" : "Do'kon qo'shildi",
+      });
     } catch (error) {
       console.error('Error saving client:', error);
+      setEditingClient(currentEditingClient);
+      setFormData(currentFormData);
+      setIsModalOpen(true);
+      showToast({
+        type: 'error',
+        message: "Do'konni saqlashda xato yuz berdi",
+      });
     }
   }
 
@@ -77,8 +99,16 @@ export default function ClientsPage() {
       try {
         await deleteClient(id);
         await loadClients();
+        showToast({
+          type: 'success',
+          message: "Do'kon o'chirildi",
+        });
       } catch (error) {
         console.error('Error deleting client:', error);
+        showToast({
+          type: 'error',
+          message: "Do'konni o'chirishda xato yuz berdi",
+        });
       }
     }
   }
@@ -162,14 +192,24 @@ export default function ClientsPage() {
                   setIsModalOpen(false);
                   setEditingClient(null);
                 }}
+                type="button"
               >
                 {t('cancel')}
               </Button>
-              <Button onClick={handleSave}>{t('save')}</Button>
+              <Button type="submit" form="client-form">
+                {t('save')}
+              </Button>
             </>
           }
         >
-          <div className="space-y-4">
+          <form
+            id="client-form"
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleSave();
+            }}
+          >
             <Input
               label={t('clientName')}
               value={formData.name}
@@ -190,7 +230,7 @@ export default function ClientsPage() {
               placeholder="Manzil"
               rows={3}
             />
-          </div>
+          </form>
         </Modal>
       </main>
     </>

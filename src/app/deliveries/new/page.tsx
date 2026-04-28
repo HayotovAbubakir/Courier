@@ -6,6 +6,7 @@ import { Navigation } from '@/components/Navigation';
 import { Card, Button, Input, Select, TextArea } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { createDelivery, createDeliveryItem, getClients } from '@/lib/db-operations';
+import { formatIntegerInput, normalizeIntegerInput, parseIntegerInput } from '@/lib/delivery-helpers';
 import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
 
@@ -111,7 +112,7 @@ export default function NewDeliveryPage() {
         <Card>
           <h1 className="text-3xl font-bold text-gray-900 mb-8">{t('addDelivery')}</h1>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} noValidate className="space-y-6">
             <Select
               label={t('clientName')}
               value={formData.client_id}
@@ -159,12 +160,10 @@ export default function NewDeliveryPage() {
                         label={t('quantity')}
                         type="text"
                         inputMode="numeric"
-                        pattern="[0-9]*"
-                        step="0.01"
                         value={item.quantity}
                         onChange={(e) => {
                           const newItems = [...items];
-                          newItems[index].quantity = parseFloat(e.target.value) || 0;
+                          newItems[index].quantity = parseFloat(e.target.value.replace(/,/g, '')) || 0;
                           setItems(newItems);
                         }}
                         required
@@ -193,12 +192,11 @@ export default function NewDeliveryPage() {
                         label={t('unitPrice')}
                         type="text"
                         inputMode="numeric"
-                        pattern="[0-9]*"
-                        step="0.01"
-                        value={item.unit_price}
+                        value={formatIntegerInput(item.unit_price)}
                         onChange={(e) => {
                           const newItems = [...items];
-                          newItems[index].unit_price = parseFloat(e.target.value) || 0;
+                          const normalizedValue = normalizeIntegerInput(e.target.value);
+                          newItems[index].unit_price = parseIntegerInput(normalizedValue);
                           setItems(newItems);
                         }}
                         required

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { useParams } from 'next/navigation';
 import { Navigation } from '@/components/Navigation';
 import { Card, Button, Loading, EmptyState, Badge, Modal, Input } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { getDelivery, getDeliveryPayments, recordPayment } from '@/lib/db-operations';
+import { formatIntegerInput, normalizeIntegerInput, parseIntegerInput } from '@/lib/delivery-helpers';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -17,6 +18,14 @@ export default function DeliveryPage() {
   const [loading, setLoading] = useState(true);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
+
+  function formatPaymentAmount(value: string) {
+    return formatIntegerInput(value);
+  }
+
+  function parsePaymentAmount(value: string) {
+    return parseIntegerInput(value);
+  }
 
   useEffect(() => {
     loadData();
@@ -37,13 +46,18 @@ export default function DeliveryPage() {
   }
 
   async function handlePayment() {
-    if (!paymentAmount) return;
+    const amount = parsePaymentAmount(paymentAmount);
+
+    if (amount <= 0) {
+      alert("To'lov summasi 0 dan katta bo'lishi kerak");
+      return;
+    }
 
     try {
       await recordPayment({
         id: uuidv4(),
         delivery_id: id as string,
-        amount: parseFloat(paymentAmount),
+        amount,
         payment_date: new Date().toISOString().split('T')[0],
         notes: '',
         created_at: new Date().toISOString(),
@@ -52,8 +66,9 @@ export default function DeliveryPage() {
       setIsPaymentModalOpen(false);
       setPaymentAmount('');
       await loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error recording payment:', error);
+      alert(error?.message || 'Toʻlovni saqlashda xato yuz berdi');
     }
   }
 
@@ -221,7 +236,7 @@ export default function DeliveryPage() {
           </div>
         }
       >
-        <div className="space-y-4">
+        <form noValidate className="space-y-4">
           <div className="bg-red-50 p-3 rounded">
             <p className="text-sm text-gray-600">Qolgan summa</p>
             <p className="text-2xl font-bold text-red-600">{remainingBalance} so'm</p>
@@ -230,13 +245,13 @@ export default function DeliveryPage() {
             label="To'lov summası"
             type="text"
             inputMode="numeric"
-            pattern="[0-9]*"
             value={paymentAmount}
-            onChange={(e) => setPaymentAmount(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setPaymentAmount(formatPaymentAmount(e.target.value))
+            }
             placeholder="0"
-            max={remainingBalance}
           />
-        </div>
+        </form>
       </Modal>
     </>
   );
